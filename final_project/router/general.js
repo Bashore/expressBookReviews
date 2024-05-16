@@ -1,4 +1,5 @@
 const express = require('express');
+const axios = require('axios').default;
 let books = require("./booksdb.js");
 let isValid = require("./auth_users.js").isValid;
 let users = require("./auth_users.js").users;
@@ -31,22 +32,46 @@ public_users.post("/register", (req,res) => {
   return res.status(404).json({message: "Unable to register user."});
 });
 
+//-----------------------------------------------------
+// Example of getting book list using a promise
 let bookPromise = new Promise((resolve,reject) => {
   // A timeout to fake a delay in database lookup
   setTimeout(() => {
     resolve(books)
   }, 1000)})
 
+//-----------------------------------------------------
+// Example of getting book list using async axios
+// Note that I wasn't able to get axios to read a local
+// file. So I created another local server to serve only
+// the booksdb.js file on port 8080
+async function getBooksAsync() {
+  try {
+    const theBooks = await axios.get("http://localhost:8080",{})
+    console.log("got books");
+    return theBooks.data;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
 
 // Get the book list available in the shop
 public_users.get('/',function (req, res) {
-  bookPromise.then((promise_books) =>
-    res.send( JSON.stringify(promise_books) ));
+  // Use the axios method
+  getBooksAsync().then(resp => {
+    console.log("GOT BOOKS " + resp);
+    res.send( JSON.stringify(resp) );
+  })
+  .catch(err => {
+    res.send( "No books found" );
+  });
 });
 
 // Get book details based on ISBN
 public_users.get('/isbn/:isbn',function (req, res) {
   const isbn = req.params.isbn;
+  // Use a promise
   bookPromise.then((promise_books) =>
     res.send( JSON.stringify(promise_books[isbn]) ));
 });
@@ -56,6 +81,7 @@ public_users.get('/author/:author',function (req, res) {
 
   const author = req.params.author;
   let author_books = [];
+  // Use a promise
   bookPromise.then((promise_books) => {
     for(let book in promise_books) {
       if (promise_books[book].author === author) {
@@ -70,6 +96,7 @@ public_users.get('/author/:author',function (req, res) {
 public_users.get('/title/:title',function (req, res) {
   const title = req.params.title;
   let ret_books = [];
+  // Use a promise
   bookPromise.then((promise_books) => {
     for(let book in promise_books) {
       if (promise_books[book].title === title) {
